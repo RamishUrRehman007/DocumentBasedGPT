@@ -42,6 +42,16 @@ services:
       - internal
     depends_on:
       - "redis"
+  front:
+    build:
+      context: ./front   # Updated to use the Dockerfile in the front directory
+    container_name: document_based_gpt-front
+    ports:
+      - "8090:80"
+    networks:
+      - internal
+    depends_on:
+      - api
 volumes:
   db_data: {}
 networks:

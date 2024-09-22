@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q/A with DocumentBasedGPT</title>
+    <style>
+        /* Basic Reset */
+        body,
+        h1,
+        div,
+        input,
+        button {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body Styling */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Chat Container Styling */
+        .chat-container {
+            background-color: white;
+            width: 500px;
+            height: 650px;
+            border-radius: 10px;
+            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 2px solid #007bff;
+        }
+
+        /* Chat Header Styling */
+        .chat-header {
+            background-color: #007bff;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-bottom: 2px solid #0056b3;
+        }
+
+        /* Chat Messages Styling */
+        .messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-end;
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background-color: #e1f0ff;
+            color: #333;
+            flex-direction: row-reverse;
+            border-bottom-right-radius: 0;
+            border-color: #007bff;
+        }
+
+        .message.ai {
+            align-self: flex-start;
+            background-color: #f0f0f0;
+            color: #333;
+            border-bottom-left-radius: 0;
+            border-color: #28a745;
+        }
+
+        .message img {
+            width: 35px;
+            height: 35px;
+            margin: 0 8px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+        }
+
+        /* Input Area Styling */
+        .input-area {
+            display: flex;
+            padding: 15px;
+            border-top: 2px solid #ddd;
+            background-color: #fff;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            transition: border 0.3s ease;
+        }
+
+        .input-area input:focus {
+            border: 1px solid #007bff;
+            outline: none;
+        }
+
+        .input-area button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .input-area button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">Q/A with DocumentBasedGPT</div>
+        <div id="chatMessages" class="messages"></div>
+        <div class="input-area">
+            <input type="text" id="chatInput" placeholder="Type your message..." />
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendButton = document.getElementById('sendButton');
+
+        // WebSocket Connection
+        const chat_id = "document-based-gpt"; // Updated chat_id to match your WebSocket server
+        const user_id = 1; // Assuming this user_id for the user
+        const socket = new WebSocket('ws://localhost:10000/service/api/v1/websockets/qa_chat/document-based-gpt');
+
+        // Open WebSocket connection
+        socket.onopen = () => {
+            console.log('Connected to WebSocket');
+            const connectMessage = {
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "message": `User ${user_id} connected to chat - ${chat_id}`
+            };
+            socket.send(JSON.stringify(connectMessage));
+        };
+
+        // Handle incoming messages
+        socket.onmessage = (event) => {
+            console.log("Message received from WebSocket:", event.data);
+            try {
+                const data = JSON.parse(event.data);
+
+                // Display the message without a chat_id check since we know it's valid
+                if (data.message) {
+                    displayMessage(data.user_id, data.message);
+                } else {
+                    console.warn("Received a message without text content:", data);
+                }
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+        };
+
+        // Send message when "Send" button is clicked
+        sendButton.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (message === "") return;
+
+            const messageData = {
+                "user_id": user_id,
+                "chat_id": chat_id,
+                "message": message
+            };
+
+            console.log("Sending message:", messageData);
+            socket.send(JSON.stringify(messageData));
+            displayMessage(user_id, message); // Display user message
+            chatInput.value = ""; // Clear the input
+        }
+
+        // Display message in the chat window
+        function displayMessage(senderId, message) {
+            if (typeof message !== "string") {
+                console.warn("Invalid message format, expected a string:", message);
+                return;
+            }
+
+            const messageElement = document.createElement('div');
+            const imageElement = document.createElement('img');
+            const contentElement = document.createElement('div');
+
+            if (senderId === user_id) { // User's message
+                messageElement.classList.add('message', 'user');
+                imageElement.src = "https://img.icons8.com/ios-filled/50/000000/user-male-circle.png"; // User icon
+            } else { // AI's message
+                messageElement.classList.add('message', 'ai');
+                imageElement.src = "https://img.icons8.com/ios-filled/50/000000/artificial-intelligence.png"; // AI icon
+            }
+
+            contentElement.textContent = message;
+            messageElement.appendChild(imageElement);
+            messageElement.appendChild(contentElement);
+
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll to the latest message
+        }
+
+        // Handle WebSocket errors
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        // Close WebSocket connection
+        socket.onclose = () => {
+            console.log('WebSocket connection closed');
+        };
+    </script>
+</body>
+
+</html>

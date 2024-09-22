@@ -22,7 +22,7 @@ class DataLoader:
 
 
 class DocumentSplitter:
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 10):
+    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 20):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
@@ -70,6 +70,9 @@ class VectorStoreManager:
             spec=ServerlessSpec(cloud="aws", region=self.region),
         )
 
+    def delete_existing_vectors(self):
+        Pinecone().Index(self.index_name).delete(delete_all=True)
+
     async def load_vector_store(self, documents: List, embeddings):
         return await PineconeVectorStore.afrom_documents(
             index_name=self.index_name, documents=documents, embedding=embeddings
@@ -81,7 +84,7 @@ class VectorStoreManager:
         )
 
     async def similarity_search(
-        self, query: str, embeddings: List, k: int = 2, with_score: bool = False
+        self, query: str, embeddings: List, k: int = 1, with_score: bool = False
     ):
         store = self.load_existing_store(embeddings)
         if with_score:
@@ -128,7 +131,7 @@ class DocumentGPTSystem:
         embeddings = self.embeddings_provider.get_embeddings()
 
         # logging.info("Loading Embedding model from OpenAI")
-        # self.vector_store_manager.create_index()
+        self.vector_store_manager.delete_existing_vectors()
 
         logging.info("Uploading the Vectors to Pinecone")
         return await self.vector_store_manager.load_vector_store(split_docs, embeddings)
@@ -142,4 +145,12 @@ class DocumentGPTSystem:
             query, embeddings
         )
 
-        return await self.qa_service.get_answer(query, similar_docs)
+        answer = await self.qa_service.get_answer(query, similar_docs)
+
+        return f"""
+
+                {answer}
+
+                File: {similar_docs[0].metadata}
+                Paragraph: {similar_docs[0].page_content}
+                """

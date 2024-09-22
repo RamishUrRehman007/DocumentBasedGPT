@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Upload</title>
+    <style>
+        /* Basic Reset */
+        body,
+        h1,
+        div,
+        input,
+        button {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body Styling */
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f7f9fc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+        }
+
+        /* Container Styling */
+        .container {
+            background-color: #fff;
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 450px;
+            width: 100%;
+            transition: transform 0.3s;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Title Styling */
+        h1 {
+            margin-bottom: 25px;
+            color: #0056b3;
+            font-size: 1.8rem;
+            letter-spacing: 0.5px;
+        }
+
+        /* File Input Styling */
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Custom File Input Button */
+        label {
+            padding: 12px 25px;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: inline-block;
+            margin: 15px 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        label:hover {
+            background-color: #0056b3;
+        }
+
+        /* Button Styling */
+        #uploadButton,
+        #chatButton {
+            padding: 12px 25px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        #uploadButton {
+            background-color: #007bff;
+        }
+
+        #uploadButton:hover {
+            background-color: #0056b3;
+        }
+
+        #chatButton {
+            background-color: #28a745;
+            display: none;
+        }
+
+        #chatButton:hover {
+            background-color: #218838;
+        }
+
+        /* Popup Styling */
+        .popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            visibility: hidden;
+            opacity: 0;
+            transition: visibility 0s, opacity 0.3s ease;
+        }
+
+        .popup.active {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .popup-content {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 300px;
+        }
+
+        .popup-content span {
+            font-size: 1rem;
+            color: #333;
+        }
+
+        #statusMessage {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 5px;
+            background-color: #d4edda;
+            color: #155724;
+            display: none;
+            font-size: 0.9rem;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Document Upload</h1>
+        <input type="file" id="fileInput" multiple />
+        <label for="fileInput">Select Files</label>
+        <button id="uploadButton">Upload Files</button>
+
+        <div id="popup" class="popup">
+            <div class="popup-content">
+                <span id="popupMessage">File is being processed...</span>
+            </div>
+        </div>
+
+        <div id="statusMessage"></div>
+        <button id="chatButton">Chat with Document GPT</button>
+    </div>
+
+    <script>
+        // Get HTML elements
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const popup = document.getElementById('popup');
+        const popupMessage = document.getElementById('popupMessage');
+        const statusMessage = document.getElementById('statusMessage');
+        const chatButton = document.getElementById('chatButton');
+        const fileLabel = document.querySelector('label[for="fileInput"]');
+
+        // Display selected file names
+        fileInput.addEventListener('change', () => {
+            const files = fileInput.files;
+            if (files.length > 0) {
+                fileLabel.textContent = `${files.length} file(s) selected`;
+            } else {
+                fileLabel.textContent = 'Select Files';
+            }
+        });
+
+        // Upload files function
+        uploadButton.addEventListener('click', () => {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                alert('Please select files to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append('files', file);
+            }
+
+            // Send files to server
+            fetch('http://localhost:10000/service/api/v1/files', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'PROCESSING') {
+                        showPopup("File is being processed...");
+                        checkStatus(data.uploadId); // Assuming `uploadId` is returned in the response
+                    } else {
+                        alert('Unexpected response from the server');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error uploading files:', error);
+                });
+        });
+
+        // Check status function
+        function checkStatus(uploadId) {
+            const statusInterval = setInterval(() => {
+                fetch(`http://localhost:10000/service/api/v1/files/status?uploadId=${uploadId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'COMPLETED') {
+                            clearInterval(statusInterval);
+                            hidePopup();
+                            showStatusMessage("File Upload Complete");
+                            chatButton.style.display = 'inline-block';
+                        } else if (data.status === 'ERROR') {
+                            clearInterval(statusInterval);
+                            hidePopup();
+                            showStatusMessage("An error occurred during file processing.");
+                        }
+                    })
+                    .catch(error => {
+                        clearInterval(statusInterval);
+                        console.error('Error checking status:', error);
+                        hidePopup();
+                        showStatusMessage("An error occurred while checking file status.");
+                    });
+            }, 3000); // Check status every 3 seconds
+        }
+
+        // Popup functions
+        function showPopup(message) {
+            popupMessage.textContent = message;
+            popup.classList.add('active');
+        }
+
+        function hidePopup() {
+            popup.classList.remove('active');
+        }
+
+        // Show status message
+        function showStatusMessage(message) {
+            statusMessage.textContent = message;
+            statusMessage.style.display = 'block';
+        }
+
+        // Chat button action
+        chatButton.addEventListener('click', () => {
+            window.location.href = "http://localhost:8090/chat.html";
+        });
+    </script>
+</body>
+
+</html>
