@@ -31,6 +31,9 @@ async def create_file(
     files: dto.Any,
 ) -> dto.FileUploadResponse:
     files_data = []
+    # for safe side delete existing files
+    await FileIO.delete_all_files(f"{os.getcwd()}/backend/uploads/files/")
+    await FileIO.delete_all_files(f"{os.getcwd()}/backend/uploads/meta_data/")
 
     for file in files:
         file_extension = file.filename.split(".")[-1].lower()
@@ -44,9 +47,16 @@ async def create_file(
 
         file_path = f"{os.getcwd()}/backend/uploads/files/{file.filename}"
 
-        logging.info(f"File Contents: {contents}")
+        # logging.info(f"File Contents: {contents}")
 
-        await FileIO.write(file_path, contents.decode("utf-8"))
+        if file_extension == "pdf":
+            logging.info("PDF File")
+            decoded_contents = contents
+        else:
+            logging.info("Not PDF File")
+            decoded_contents = contents.decode("utf-8", errors="replace")
+
+        await FileIO.write(file_path, decoded_contents)
 
         logging.info(
             f" File Creating in DB with file_name: {file.filename}, file_path: {file_path}"

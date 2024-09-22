@@ -3,6 +3,4 @@ local/
 __pycache__
 env_document_based_gpt/
 backend/__pycache__
-backend/uploads/files/*
-backend/uploads/meta_data/*
 commands.txt

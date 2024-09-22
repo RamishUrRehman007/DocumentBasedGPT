@@ -150,7 +150,7 @@ class DocumentGPTSystem:
         return f"""
 
                 {answer}
-
-                File: {similar_docs[0].metadata}
-                Paragraph: {similar_docs[0].page_content}
+                \n\n
+                File: {similar_docs[0].metadata if similar_docs and similar_docs[0].metadata else ""}
+                Paragraph: {similar_docs[0].page_content if similar_docs and similar_docs[0].page_content else ""}
                 """
