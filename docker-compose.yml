@@ -1,0 +1,49 @@
+version: "3.7"
+services:
+  api:
+    build: .
+    container_name: document_based_gpt-api
+    ports:
+      - "${APP_PORT:-10000}:10000"
+    environment:
+      ENABLE_RELOAD_UVICORN: ${ENABLE_RELOAD_UVICORN}
+      ROOT_PATH: ${ROOT_PATH}
+      ENVIRONMENT: ${ENVIRONMENT}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      OPEN_AI_API_KEY: ${OPEN_AI_API_KEY}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+    volumes:
+      - ".:/srv"
+    networks:
+      - internal
+    hostname: api
+  redis:
+    image: redis:7.0.2
+    container_name: document_based_gpt-redis
+    ports:
+      - 6379:6379
+    networks:
+      - internal
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: document_based_gpt-worker
+    environment:
+      ENABLE_RELOAD_UVICORN: ${ENABLE_RELOAD_UVICORN}
+      ROOT_PATH: ${ROOT_PATH}
+      ENVIRONMENT: ${ENVIRONMENT}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      OPEN_AI_API_KEY: ${OPEN_AI_API_KEY}
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+    volumes:
+      - ".:/srv"
+    networks:
+      - internal
+    depends_on:
+      - "redis"
+volumes:
+  db_data: {}
+networks:
+  internal:
+    external: false

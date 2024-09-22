@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /srv
+
+COPY ./requirements.txt /srv/requirements.txt
+
+RUN pip install -r /srv/requirements.txt
+
+# Download NLTK data (only once during build)
+RUN python -m nltk.downloader punkt
+
+COPY ./ /srv/
+
+WORKDIR /srv/backend
+
+CMD ["arq", "worker.WorkerSettings"]
